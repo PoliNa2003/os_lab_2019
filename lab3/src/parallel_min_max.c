@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include <sys/time.h>
 #include <sys/types.h>
@@ -14,6 +15,10 @@
 
 #include "find_min_max.h"
 #include "utils.h"
+
+void killchild (pid_t id) {
+  kill(id, SIGKILL);
+}
 
 int main(int argc, char **argv) {
   int seed = -1;
@@ -40,18 +45,24 @@ int main(int argc, char **argv) {
         switch (option_index) {
           case 0:
             seed = atoi(optarg);
-            // your code here
-            // error handling
+            if (seed <= 0) {
+                printf("seed is a positive number\n");
+                return 1;
+            }
             break;
           case 1:
             array_size = atoi(optarg);
-            // your code here
-            // error handling
+            if (array_size <= 0) {
+                printf("array_size is a positive number\n");
+                return 1;
+            }
             break;
           case 2:
             pnum = atoi(optarg);
-            // your code here
-            // error handling
+            if (pnum <= 0) {
+                printf("pnum is a positive number\n");
+                return 1;
+            }
             break;
           case 3:
             with_files = true;
@@ -91,33 +102,43 @@ int main(int argc, char **argv) {
   struct timeval start_time;
   gettimeofday(&start_time, NULL);
 
+  FILE *fp;
+  fp=fopen("task2.txt", "w");
+
+  int pipefd[2];
+  pipe(pipefd);
+  pid_t kill_pid = -1;
+  int done_flag = 0;
+
   for (int i = 0; i < pnum; i++) {
     pid_t child_pid = fork();
     if (child_pid >= 0) {
-      // successful fork
       active_child_processes += 1;
       if (child_pid == 0) {
-        // child process
-
-        // parallel somehow
-
+        struct MinMax min_max = GetMinMax(array, (array_size*i)/pnum, (array_size*(i+1))/pnum);
         if (with_files) {
-          // use files here
+          fprintf(fp, "%d %d\n", min_max.max, min_max.min);
         } else {
-          // use pipe here
+          close(pipefd[0]);//для записи закрываем чтение
+          write(pipefd[1], &min_max.max, sizeof(min_max.max));
+          write(pipefd[1], &min_max.min, sizeof(min_max.min));
         }
         return 0;
       }
-
+      else {
+        kill_pid = child_pid;
+        signal(SIGALRM, killchild);
+      }
     } else {
       printf("Fork failed!\n");
       return 1;
     }
   }
 
-  while (active_child_processes > 0) {
-    // your code here
+  fclose(fp);
 
+  while (active_child_processes > 0) {
+    signal (SIGALRM, killchild);
     active_child_processes -= 1;
   }
 
@@ -130,9 +151,12 @@ int main(int argc, char **argv) {
     int max = INT_MIN;
 
     if (with_files) {
-      // read from files
+      fscanf(fp,"%d %d",&max,&min);//чтение из потока
+      printf("Max_read: %d %d\n", max, min);
     } else {
-      // read from pipes
+      read(pipefd[0], &max, 4);
+      read(pipefd[0], &min, 4);
+      printf("Max_read: %d Min_read: %d\n", max, min);
     }
 
     if (min < min_max.min) min_max.min = min;
