@@ -74,8 +74,10 @@ int main(int argc, char **argv) {
           case 4:
             time = atoi(optarg);
             if (time <= 0) {
-              printf("pnum is a positive number\n");
+              printf("time is a positive number\n");
               return 1;
+            }
+            break;
           defalut:
             printf("Index %d is out of options\n", option_index);
         }
@@ -102,7 +104,7 @@ int main(int argc, char **argv) {
            argv[0]);
     return 1;
   }
-  }
+
 
   alarm(time);
   sleep(time/2);
