@@ -102,6 +102,7 @@ int main(int argc, char **argv) {
            argv[0]);
     return 1;
   }
+  }
 
   alarm(time);
   sleep(time/2);
